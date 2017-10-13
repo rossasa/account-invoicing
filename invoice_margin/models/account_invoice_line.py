@@ -23,11 +23,16 @@ class AccountInvoiceLine(models.Model):
 
     # Compute Section
     @api.multi
-    @api.depends('product_id', 'quantity', 'price_subtotal', 'invoice_id.type')
+    @api.depends(
+        'product_id', 'quantity', 'price_subtotal', 'invoice_id.type',
+        'invoice_id.currency_id')
     def _compute_multi_margin(self):
+        company_currency = self.env.user.company_id.currency_id
         for line in self.filtered(
                 lambda l: l.product_id and
                 l.invoice_id.type in ('out_invoice', 'out_refund')):
             line.purchase_price = line.product_id.standard_price
-            line.margin = line.price_subtotal - (
+            price_subtotal = line.invoice_id.currency_id.compute(
+                line.price_subtotal, company_currency)
+            line.margin = price_subtotal - (
                 line.product_id.standard_price * line.quantity)
